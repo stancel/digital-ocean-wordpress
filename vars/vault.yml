@@ -1,0 +1,18 @@
+---
+# Vault/protected variables needed to run this playbook or project
+
+#####     Required Variables  -  Playbook Level    #####
+
+# The DB user to create when to be used by the application
+application_db_user: "wordpressDbUser"
+
+# The password for the DB user being created
+application_db_password: "Fill in"
+
+# Fill in whatever you'd like your MySQL Root Password to be
+mysql_root_password: "Fill in"
+
+# The Bareos Director password for the Bareos File Daemon service being installed on the Bareos Client machine. 
+# This should be a very long string (47 characters is the default).
+bareos_client_password: "Fill in"
+

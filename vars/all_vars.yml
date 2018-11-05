@@ -1,0 +1,417 @@
+---
+# All variables needed to run this playbook or project
+
+# Ansible is flexible and there are many ways you can choose to place variables for the playbooks and roles they run. My preference is to keep any desired default values in their place in the playbooks or roles, but have one file to edit where required variables can be placed and/or default values overridden. My chosen pattern is to create this file for any playbook/project and place the required and desired variables here. This gives: a central place to edit needed values, the highest level of variable precedence and no need to re-pass variables when importing other playbooks into this project since variables placed here are also global in scope. To achieve this when running the playbook/project we will pass this file as parameter like so:
+# ansible-playbook master.yml -e @vars/all_vars.yml -e @vars/vault.yml -i hosts/production
+
+
+#####     Required Variables  -  Playbook Level    #####
+
+# Host Name of the droplet, also the droplet name as shown in DigitalOcean
+host_name: "Fill in"
+
+# The Fully Qualified Domain Name you'll be using for the server you are creating. DO DNS will create an A record for this entry and point it to your newly created droplet.
+server_fqdn: "Fill in"
+
+# Is this a "new", "upgrade" or "restore" installation? "new" and "upgrade" installs install files from Git, "restore" skips any git deployments and expect a later role to restore files to the needed directory. 
+installation_type: "Fill in"
+
+# Is this instance to be used for a "dev", "qa" or "prod" environment? Only "prod" environments will deploy the SuiteCRM schedulers.
+environment_type: "Fill in"
+
+# FOR RESTORES - The name of the client listed inside Bareos Server that you want to restore files from
+bareos_client_to_restore: "Fill in"
+
+# The database to create when setting up the application and backup
+db_name: "wordpress"
+
+# The alias or Nagios friendly name to show in Nagios as the computer being monitored
+nagios_friendly_name: "{{host_name}}-{{environment_type}}"
+
+# Document root directory of your webserver
+web_files_path: "/var/www"
+
+# Application directory inside the webserver document root directory
+web_directory_for_application:  "/html"
+
+
+# Environment Variables Set - These need to be set!
+ssl_cert_file_path: "{{ lookup('env', 'DO_SSL_CERT_FILE') }}"
+ssl_cert_key_file_path: "{{ lookup('env', 'DO_SSL_CERT_KEY_FILE') }}"
+ssl_ca_cert_file_path: "{{ lookup('env', 'DO_SSL_CA_CERT_FILE') }}"
+digital_ocean_api_token: "{{ lookup('env', 'DO_API_TOKEN') }}"
+admin_user_ssh_key_fingerprint: "{{ lookup('env', 'DO_SSH_KEY_SIG_BRAD_PERSONAL') }}"
+control_server_ssh_key_fingerprint: "{{ lookup('env', 'DO_SSH_KEY_SIG_ATL_SERVER') }}"
+bareos_server_fqdn: "{{ lookup('env', 'BAREOS_STORAGE_DAEMON_FQDN') }}"
+bareos_storage_password: "{{ lookup('env', 'BAREOS_STORAGE_PASSWORD') }}"
+nagios_server_fqdn: "{{ lookup('env', 'NAGIOS_SERVER_FQDN') }}"
+
+
+
+
+
+#####     ROLE VARIABLES TO OVERRIDE IF A CUSTOM SETUP IS DESIRED    #####
+
+
+#####   Role - create-digitalocean-droplet  #####
+
+# Host Name of the droplet, also the droplet name as shown in DigitalOcean
+create_digitalocean_droplet_host_name: "{{ host_name }}"
+
+# The Fully Qualified Domain Name you'll be using for the server you are creating. DO DNS will create an A record for this entry and point it to your newly created droplet.
+create_digitalocean_droplet_server_fqdn: "{{ server_fqdn }}"
+
+# You must have your DigitalOcean API token saved into this environment variable
+create_digitalocean_droplet_do_token: "{{ digital_ocean_api_token }}"
+
+# A list of any SSH key fingerprints that correspond to the SSH key(s) that you have uploaded to your DO account and would like to add to this droplet as it is created in order to allow access. You can find these fingerprints by going into your DO account settings, then the Security tab and either adding a SSH key and copying the fignerprint or copying a fingerprint of an already uploaded SSH key.
+create_digitalocean_droplet_ssh_keys:
+  - "{{ admin_user_ssh_key_fingerprint }}"
+  - "{{ control_server_ssh_key_fingerprint }}"
+
+# The size of your Droplet. See options in your DO account or their API documentation for a list
+create_digitalocean_droplet_droplet_size: "1gb"
+
+# The droplet image to use. Here we are using a base Ubuntu 16.04 LTS image
+create_digitalocean_droplet_droplet_image: "ubuntu-16-04-x64"
+
+# The DO datacenter region for your droplet
+create_digitalocean_droplet_region: "nyc1"
+
+### Defaults
+# Recommend keeping this setting. Makes the creation of the droplet idempotent.
+#create_digitalocean_droplet_unique_name: yes
+
+# DigitalOcean option for not charging bandwidth when speaking to other DO droplets
+#create_digitalocean_droplet_private_networking: no 
+
+# DigitalOcean option for backing up the droplet periodically
+#create_digitalocean_droplet_backups_enabled: no
+
+
+#####   Role - apache-webserver     #####
+
+# The Fully Qualified Domain Name you'll be using for the server you are creating.
+apache_webserver_server_fqdn: "{{ server_fqdn }}"
+
+# The Apache Server Alias directive
+apache_webserver_server_alias: "*.{{server_fqdn}}"
+
+# Path to your SSL Cert file
+apache_webserver_ssl_certificate_file: "{{ lookup('file', '{{ ssl_cert_file_path }}') }}" 
+
+# Path to your private key
+apache_webserver_ssl_certificate_key_file: "{{ lookup('file', '{{ ssl_cert_key_file_path }}') }}" 
+
+# Path to the Certificate Authority Cert file
+apache_webserver_ssl_ca_certificate_file: "{{ lookup('file', '{{ ssl_ca_cert_file_path }}') }}"  
+
+
+#####   Role - oefenweb.percona-server    #####
+
+percona_server_version: 5.7
+
+# Fill in whatever you'd like your MySQL Root Password to be
+percona_server_root_password: "{{ mysql_root_password }}"
+  
+percona_server_users_present_hosts:
+  - 'localhost'
+  - '%'
+
+percona_server_etc_my_cnf:
+  - section: mysqld
+    options:
+      - name: bind-address
+        value: "0.0.0.0"
+
+
+#####   Role - setup-mysql-backups  #####
+
+# List of databases to backup
+setup_mysql_backups_dbs_to_backup: 
+  - "{{ db_name }}"
+
+# MySQL / MariaDB root password
+setup_mysql_backups_mysql_root_password: "{{ mysql_root_password }}"
+
+# Number of DB Backups to keep
+#setup_mysql_backups_num_db_backups_to_keep: 30
+
+
+#####   Role - install-bareos-client    #####
+
+# The Bareos Director password for the Bareos File Daemon service being installed. This should be a very long string (47 characters is the default) and must match the applicable records 
+install_bareos_client_client_password: "{{ bareos_client_password }}" 
+
+# Which (numerical) version of Ubuntu you are installing this onto
+install_bareos_client_bareos_ubuntu_install_version: "16.04"
+
+
+#####   Role - add-job-to-bareos-director     #####
+
+# The hostname of the machine you are backing up
+add_job_to_bareos_director_host_name: "{{ host_name }}"
+
+# The fully qualified domain name or IP address of the machine you are adding to be backed up
+add_job_to_bareos_director_server_fqdn: "{{ server_fqdn }}"
+
+# The fully qualified domain name or IP address of where your Bareos Storage Daemon/Service is running. For most people this will probably be the same FQDN of where the Bareos Director daemon/service runs (your Bareos Server), but can be a separate machine.
+add_job_to_bareos_director_bareos_storage_daemon_fqdn: "{{ bareos_server_fqdn }}"
+
+# It needs to match the client_password entered when adding the bareos client program to the machine you want to backup. The value for this is usually a very long string (47 characters) of random characters.
+add_job_to_bareos_director_client_password: "{{ install_bareos_client_client_password }}"
+
+# The storage director password variable is the bareos-dir password found on your Bareos Server
+add_job_to_bareos_director_storage_director_password: "{{ bareos_storage_password }}"
+
+
+# Backup Level - Full, Incremental, Differential
+# Incremental - all ﬁles changed since the last Full, Diﬀerential, or Incremental backup started
+# Diﬀerential - all ﬁles speciﬁed in the FileSet that have changed since the last successful *Full* backup will be backed up
+# Full - all ﬁles in the FileSet whether or not they have changed will be backed up
+add_job_to_bareos_director_level: Incremental
+
+# Permits you to control the order in which your jobs will be run. The higher the number, the lower the job priority. 
+add_job_to_bareos_director_priority: 6
+
+# See the README documentation for more detailed info on these variables
+add_job_to_bareos_director_backup_schedule:
+  - Run = Full sun at 02:00
+  - Run = Incremental mon-sat at 02:00
+
+add_job_to_bareos_director_archive_device: "/z-storage/backups/{{ add_job_to_bareos_director_host_name }}"
+
+add_job_to_bareos_director_filesets_to_backup:
+  - File = "{{ web_files_path }}{{ web_directory_for_application }}"
+  - File = "/backups/mysql/current"
+add_job_to_bareos_director_filesets_to_exclude:
+  - File = "{{ web_files_path }}{{ web_directory_for_application }}/.github"
+  - File = "{{ web_files_path }}{{ web_directory_for_application }}/.git"
+  - File = "{{ web_files_path }}{{ web_directory_for_application }}/.gitignore"
+
+#####     Optional Variables      #####
+
+# These variables are set with the below defaults in defaults/main.yml. 
+# Only uncomment and change them or pass values if you would like
+
+#add_job_to_bareos_director_backup_name: "{{ add_job_to_bareos_director_host_name }} Backup"
+
+# Individual File Records Storage Length - affects browsing files in GUI
+#file_retention: 90 days
+# Job Records in the DB - how long to store info about backups
+#add_job_to_bareos_director_job_retention: 6 months
+
+# How long to actually store the backup files
+#volume_retention_full: 12 months
+# Maximum size of each backup volume/file
+#maximum_volume_bytes_full: 10G
+# Limit number of Volumes in Pool
+#add_job_to_bareos_director_maximum_volumes_full: 10
+
+# How long to actually store the backup files
+#volume_retention_incremental: 12 months
+# Maximum size of each backup volume/file
+#maximum_volume_bytes_incremental: 10G
+# Limit number of Volumes in Pool
+#add_job_to_bareos_director_maximum_volumes_incremental: 10
+
+
+#####   Role - install-nagios-client     #####
+
+# Fully qualified domain name of your Nagios Server
+install_nagios_client_nagios_server_fqdn: "{{ nagios_server_fqdn }}"
+
+# The fully qualified domain name or IP address of the machine you are adding to be monitored
+install_nagios_client_server_fqdn: "{{ server_fqdn }}"
+
+
+#####   Role - git-deploy-setup     #####
+
+# The domain of the site to receive the Git post-receive hook
+git_deploy_setup_domain: "{{ server_fqdn }}"
+
+# The document root for the webserver
+git_deploy_setup_web_home: "{{ web_files_path }}"
+
+# The folder inside the web_home document root that stores the files served up by the webserver for this site.
+git_deploy_setup_web_folder: "{{ web_directory_for_application }}"
+
+# The file path on the server for setting up the git bare repo
+#git_deploy_setup_git_home: "/var/git"
+
+# Whether or not this git deployment setup should be run
+#git_deploy_setup_git_create: True
+
+# The linux username used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+#git_deploy_setup_web_user: "www-data"
+
+# The linux group used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+#git_deploy_setup_web_group: "www-data"
+
+
+#####   Role - add-config-to-nagios-server     #####
+
+# The hostname of the machine you are monitoring. Host names should not have spaces in them.
+add_config_to_nagios_server_host_name: "{{ host_name }}"   
+
+# The alias or Nagios friendly name to show in Nagios as the computer being monitored
+add_config_to_nagios_server_nagios_friendly_name: "{{ nagios_friendly_name }}"    
+
+# The fully qualified domain name or IP address of the machine you are adding to be monitored
+add_config_to_nagios_server_server_fqdn: "{{ server_fqdn }}"   
+
+
+#####   Role - stancel.git_download_wordpress     #####
+
+#####     Required Variables      #####
+# Fill in appropriate values below unless passing from a higher precedence
+
+# Choose the git tagged release that you would like to download and install. Comment this out if using a git branch instead.
+git_download_wordpress_tagged_release_version: "4.9.8"
+
+# Is this a "new", "upgrade" or "restore" installation? "new" and "upgrade" installs install files from Git, "restore" skips any git deployments and expect a later role to restore files to the needed directory.
+git_download_wordpress_installation_type: "{{ installation_type }}"
+
+# Is this instance to be used for a "dev", "qa" or "prod" environment? Only "prod" environments will deploy any needed cron jobs or schedulers.
+git_download_wordpress_environment_type: "{{ environment_type }}"
+
+# The database to create when setting up the application
+git_download_wordpress_db_name: "{{ db_name }}"
+
+# The DB user to create when to be used by the application
+git_download_wordpress_db_user: "{{ application_db_user }}"  
+
+# The password for the DB user being created
+git_download_wordpress_db_password: "{{ application_db_password }}"
+
+# The root password for your MySQL, MariaDB or Percona Server DB instance to create the DB and user.
+git_download_wordpress_mysql_root_password: "{{ mysql_root_password }}"
+
+# The Document Root or file path where the files will be stored and served up by your webserver. The default path is "/var/www/html" and assumes you are running Apache2 on Debian or Ubuntu
+git_download_wordpress_web_files_path: "{{ web_files_path }}"
+git_download_wordpress_web_directory_for_application: "{{ web_directory_for_application }}"
+
+    #####     Optional Variables      #####
+
+# Boolean as to whether to use standard Wordpress (default) or Bedrock WP (https://roots.io/bedrock/)
+#git_download_wordpress_use_bedrock: false
+
+# The default git repo to use when downloading and installing the application
+#git_download_wordpress_git_repo: "git@github.com:WordPress/WordPress.git"
+
+# The default git repo for downloading and installing Bedrock Wordpress
+#git_download_wordpress_bedrock_git_repo: "git@github.com:roots/bedrock.git"
+
+# If you are using your own forked repo an want to use a branch instead of a tagged release then fill in a value and comment out the "tagged_release_version" variable 
+#git_download_wordpress_git_branch: ""
+
+# The default database character set / encoding that will be use
+#git_download_wordpress_db_encoding: "utf8mb4"
+
+# The default database collation that will be use
+#git_download_wordpress_db_collation: "utf8mb4_unicode_ci"
+
+# The fqdn or IP address of where the application database will be connecting to. Default is 'localhost'
+#git_download_wordpress_db_host: "localhost"
+
+# Disable All Updates
+# By default automatic updates are enabled, set this value to true to disable all automatic updates
+#git_download_wordpress_auto_update_disable: false
+
+#Define Core Update Level
+#true  = Development, minor, and major updates are all enabled
+#false = Development, minor, and major updates are all disabled
+#minor = Minor updates are enabled, development, and major updates are disabled
+# For development sites, the default value of WP_AUTO_UPDATE_CORE is true. For other sites sites, the default value of WP_AUTO_UPDATE_CORE is minor.
+#git_download_wordpress_core_update_level: 'minor'
+
+# The linux username used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+#git_download_wordpress_web_user: "www-data"
+
+# The linux group used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+#git_download_wordpress_web_group: "www-data"
+
+# manage package with apt, you can disable the installation of package
+#git_download_wordpress_manage_packages: true
+
+# php.ini configurations flags, to allow or not the settings of these items, default is true, useful if your server is already setup with different values
+#git_download_wordpress_configure_mysqli_allow_local_infile: true
+#git_download_wordpress_configure_memory_limit: true
+#git_download_wordpress_configure_post_max_size: true
+#git_download_wordpress_configure_upload_max_filesize: true
+#git_download_wordpress_configure_max_input_time: true
+#git_download_wordpress_configure_max_execution_time: true
+#git_download_wordpress_configure_php_timezone: true
+
+# Install composer or not, default yes
+#git_download_wordpress_install_composer: true
+
+
+#####   Role - restore-bareos-backup     #####
+
+# Fill in appropriate values below unless passing from a higher precedence
+
+# The name of the client listed inside Bareos Server that you want to restore
+restore_bareos_backup_bareos_client_to_restore: "{{ bareos_client_to_restore }}"
+
+# The Bareos client name of the server where you want to restore this backup to.
+restore_bareos_backup_destination_client: "{{ host_name }}"
+
+# The name of the Bareos Fileset to restore
+restore_bareos_backup_fileset: "{{ restore_bareos_backup_bareos_client_to_restore }}-FileSet"
+
+#####     Optional Variables      #####
+# These variables are set with the below defaults in defaults/main.yml.
+# Only uncomment and change them or pass values if you would like
+
+# Restore files from a specific Bareos Backup Job ID. If filled in this will only restore files from that Job ID.
+#restore_bareos_backup_jobid: 3
+
+# Restore files before a specific date
+#restore_bareos_backup_date_before: "2018-10-02 00:00:00"
+
+# Bareos Server option to replace the existing files when restoring
+#restore_bareos_backup_replace_files_on_client: "never"
+
+# The absolute file path where the backup files should be restored to
+#restore_bareos_backup_restore_file_path_on_client: "/tmp/bareos-restores"
+
+# Timeout in seconds to wait for job completion
+#restore_bareos_backup_wait_job_timeout: 900
+
+
+
+#####   Role - restore-db-and-files     #####
+
+# The root password for your MySQL, MariaDB or Percona Server DB instance to create the DB and user.
+restore_db_and_files_mysql_root_password: "{{ mysql_root_password }}"
+
+# The name of the database to restore
+restore_db_and_files_db_name: "{{ db_name }}"
+
+# Absolute file path where Bareos files were restored to
+restore_db_and_files_path_to_restored_files: "/tmp/bareos-restores"
+
+# File paths of Bareos restored files that need to be copied to some other path
+restore_db_and_files_filesets_to_restore:
+  - "{{ web_files_path }}{{ web_directory_for_application }}"
+
+# File path where DB dump file to restore is located
+restore_db_and_files_db_backup_file_path: "{{ restore_db_and_files_path_to_restored_files }}/backups/mysql/current"
+
+#####     Optional Variables      #####
+
+# These variables are set with the below defaults in defaults/main.yml. 
+# Only uncomment and change them or pass values if you would like
+
+# The Document Root or file path where the files will be stored and served up by your webserver. The default path is "/var/www/html" and assumes you are running Apache2 on Debian or Ubuntu
+restore_db_and_files_web_files_path: "{{ web_files_path }}"
+restore_db_and_files_web_directory_for_application: "{{ web_directory_for_application }}"
+
+# The linux username used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+#restore_db_and_files_web_user: "www-data"
+
+# The linux group used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+#restore_db_and_files_web_group: "www-data"
+
+

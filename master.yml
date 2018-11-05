@@ -1,0 +1,71 @@
+---
+
+- hosts: localhost 
+  tags:
+    - init
+  roles:
+    - stancel.create-digitalocean-droplet
+
+- hosts: new_server
+  gather_facts: false
+  remote_user: root
+  become: true
+  become_method: sudo
+  tags:
+    - init
+  tasks:
+    - name: Install Python 2.x
+      raw: which python || sudo apt-get update && sudo apt-get install -qq -y python-simplejson 
+      register: python_check
+      changed_when: python_check.stdout is not search('/usr/bin/python')
+
+- hosts: new_server
+  tags:
+    - init
+  roles:
+    - stancel.apache-webserver
+    - oefenweb.percona-server
+
+- hosts: new_server
+  tags:
+    - configuration
+  roles:
+    - stancel.setup-mysql-backups
+    - stancel.install-bareos-client
+    - stancel.install-nagios-client
+
+- hosts: new_server
+  tags:
+    - init
+    - installation
+    - upgrade
+  roles:
+    - stancel.git_download_wordpress
+
+- hosts: backups monitoring 
+  tags:
+    - configuration
+  roles:
+    - stancel.add-job-to-bareos-director
+    - stancel.add-config-to-nagios-server
+
+- hosts: backups
+  tags:
+    - restore
+  roles:
+    - stancel.restore_bareos_backup
+
+- hosts: new_server
+  tags:
+    - restore
+  roles:
+    - stancel.restore_db_and_files
+
+- hosts: new_server
+  tags:
+    - configuration
+  roles:
+    - stancel.git_deploy_setup
+
+
+
