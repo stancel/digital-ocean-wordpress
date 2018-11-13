@@ -23,8 +23,14 @@
   tags:
     - init
   roles:
-    - stancel.apache-webserver
+    - stancel.add_digitalocean_dns_entries
+    - stancel.certbot_install
+    - stancel.install_certbot_ssl_certs
+    - memcached
+    - stancel.nginx_install
+    - stancel.nginx_site_setup
     - oefenweb.percona-server
+    - sbaerlocher.wp-cli
 
 - hosts: new_server
   tags:
@@ -60,6 +66,7 @@
     - restore
   roles:
     - stancel.restore_db_and_files
+    - stancel.finish_wordpress_restore
 
 - hosts: new_server
   tags:

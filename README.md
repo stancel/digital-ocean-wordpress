@@ -50,7 +50,6 @@ Roles
 ------------
 
 	- stancel.create-digitalocean-droplet
-	- stancel.apache-webserver
 	- oefenweb.percona-server
 	- stancel.setup-mysql-backups
 	- stancel.install-bareos-client
@@ -61,6 +60,14 @@ Roles
 	- stancel.restore_bareos_backup
 	- stancel.restore_db_and_files
 	- stancel.git_deploy_setup 
+	- stancel.nginx_install
+	- stancel.nginx_site_setup
+	- stancel.certbot_install 
+	- stancel.install_certbot_ssl_certs
+	- stancel.add_digitalocean_dns_entries
+	- sbaerlocher.wp-cli
+	- stancel.finish_wordpress_restore
+
 
 
 Author Information

@@ -7,10 +7,10 @@
 
 #####     Required Variables  -  Playbook Level    #####
 
-# Host Name of the droplet, also the droplet name as shown in DigitalOcean
+# Host Name of the droplet, also the droplet name as shown in DigitalOcean. Make sure this does not have spaces. Example - host_name: "my-bedrock-wp"
 host_name: "Fill in"
 
-# The Fully Qualified Domain Name you'll be using for the server you are creating. DO DNS will create an A record for this entry and point it to your newly created droplet.
+# The Fully Qualified Domain Name you'll be using for the server you are creating. DO DNS will create an A record for this entry and point it to your newly created droplet. Example: server_fqdn: "mysite.com"
 server_fqdn: "Fill in"
 
 # Is this a "new", "upgrade" or "restore" installation? "new" and "upgrade" installs install files from Git, "restore" skips any git deployments and expect a later role to restore files to the needed directory. 
@@ -32,13 +32,24 @@ nagios_friendly_name: "{{host_name}}-{{environment_type}}"
 web_files_path: "/var/www"
 
 # Application directory inside the webserver document root directory
-web_directory_for_application:  "/html"
+web_directory_for_application: "{{ (use_bedrock_wp == true) | ternary( web_directory_bedrock_wp, web_directory_standard_wp ) }}"
+
+# Is this a Bedrock WP install / update / restore? - Must be true of false.
+use_bedrock_wp: true
+
+# What git tagged version (WordPress/Bedrock/Custom) to install / download? *Leave this as an empty string "" if using a branch instead.*
+tagged_version_to_use: "1.9.0"
+
+# What git branch to checkout and use *instead of a tagged release*. *Leave this as an empty string "" if using a tagged / release version instead.*
+git_branch: ""
+
+# Use a different repo than the standard WordPress one or official Bedrock one? 
+# If you have a client specific one or template already saved, put it here. Must be in format: git@github.com:ProcessFast/processfast-wp-bedrock.git
+# Leave as an empty string "" if you want to use default WordPress or Bedrock repo.
+custom_bedrock_git_repo: ""
 
 
 # Environment Variables Set - These need to be set!
-ssl_cert_file_path: "{{ lookup('env', 'DO_SSL_CERT_FILE') }}"
-ssl_cert_key_file_path: "{{ lookup('env', 'DO_SSL_CERT_KEY_FILE') }}"
-ssl_ca_cert_file_path: "{{ lookup('env', 'DO_SSL_CA_CERT_FILE') }}"
 digital_ocean_api_token: "{{ lookup('env', 'DO_API_TOKEN') }}"
 admin_user_ssh_key_fingerprint: "{{ lookup('env', 'DO_SSH_KEY_SIG_BRAD_PERSONAL') }}"
 control_server_ssh_key_fingerprint: "{{ lookup('env', 'DO_SSH_KEY_SIG_ATL_SERVER') }}"
@@ -52,6 +63,14 @@ nagios_server_fqdn: "{{ lookup('env', 'NAGIOS_SERVER_FQDN') }}"
 
 #####     ROLE VARIABLES TO OVERRIDE IF A CUSTOM SETUP IS DESIRED    #####
 
+web_directory_bedrock_wp: "/{{ host_name }}"
+web_directory_standard_wp: "/{{ host_name }}/www"
+
+#nginx_site_cert_file: "{{ lookup('env', 'NGINX_SITE_SSL_CERT_FILE') }}"
+#nginx_ca_cert_file: "{{ lookup('env', 'NGINX_CA_SSL_CERT_FILE') }}"
+#ssl_cert_file_path: "{{ lookup('env', 'DO_SSL_CERT_FILE') }}"
+#ssl_cert_key_file_path: "{{ lookup('env', 'DO_SSL_CERT_KEY_FILE') }}"
+#ssl_ca_cert_file_path: "{{ lookup('env', 'DO_SSL_CA_CERT_FILE') }}"
 
 #####   Role - create-digitalocean-droplet  #####
 
@@ -73,7 +92,7 @@ create_digitalocean_droplet_ssh_keys:
 create_digitalocean_droplet_droplet_size: "1gb"
 
 # The droplet image to use. Here we are using a base Ubuntu 16.04 LTS image
-create_digitalocean_droplet_droplet_image: "ubuntu-16-04-x64"
+create_digitalocean_droplet_droplet_image: "ubuntu-18-04-x64"
 
 # The DO datacenter region for your droplet
 create_digitalocean_droplet_region: "nyc1"
@@ -89,22 +108,119 @@ create_digitalocean_droplet_region: "nyc1"
 #create_digitalocean_droplet_backups_enabled: no
 
 
-#####   Role - apache-webserver     #####
+#####   Role - apache-webserver     #####   -  No longer used - leaving in for now in case I end up supporting both
 
-# The Fully Qualified Domain Name you'll be using for the server you are creating.
-apache_webserver_server_fqdn: "{{ server_fqdn }}"
+#The Fully Qualified Domain Name you'll be using for the server you are creating.
+#apache_webserver_server_fqdn: "{{ server_fqdn }}"
+#
+#The Apache Server Alias directive
+#apache_webserver_server_alias: "*.{{server_fqdn}}"
+#
+#Path to your SSL Cert file
+#apache_webserver_ssl_certificate_file: "{{ lookup('file', '{{ ssl_cert_file_path }}') }}" 
+#
+#Path to your private key
+#apache_webserver_ssl_certificate_key_file: "{{ lookup('file', '{{ ssl_cert_key_file_path }}') }}" 
+#
+#Path to the Certificate Authority Cert file
+#apache_webserver_ssl_ca_certificate_file: "{{ lookup('file', '{{ ssl_ca_cert_file_path }}') }}"  
 
-# The Apache Server Alias directive
-apache_webserver_server_alias: "*.{{server_fqdn}}"
 
-# Path to your SSL Cert file
-apache_webserver_ssl_certificate_file: "{{ lookup('file', '{{ ssl_cert_file_path }}') }}" 
+#####   Role - stancel.nginx_install     #####
 
-# Path to your private key
-apache_webserver_ssl_certificate_key_file: "{{ lookup('file', '{{ ssl_cert_key_file_path }}') }}" 
+# Will the webserver host more than one website? This determines where to place the logs among other things.
+nginx_install_shared_webserver: false
 
-# Path to the Certificate Authority Cert file
-apache_webserver_ssl_ca_certificate_file: "{{ lookup('file', '{{ ssl_ca_cert_file_path }}') }}"  
+# The non-root linux user that NginX will run as. The default is "www-data"
+nginx_install_nginx_user: "www-data"
+
+
+#####   Role - stancel.nginx_site_setup     #####
+
+# Sites to setup and host on the webserver
+nginx_site_setup_sites_to_set_up:
+  - {
+      url: '{{ server_fqdn }}',
+      name: '{{ host_name }}',
+      nginx_server_name: '{{ server_fqdn }} www.{{ server_fqdn }}',
+      https: true
+    }
+
+    #####     Optional Variables      #####
+
+# The document root for the webserver
+nginx_site_setup_web_home: "{{ web_files_path }}"
+
+# The name of the folder created under each website folder that holds the files NginX will serve up in its server block. If this is used with Bedrock WordPress then it should be changed to "web".
+#nginx_site_setup_site_subfolder_used_to_serve_files: "{{ 'web' if use_bedrock_wp == true else 'www' }}"
+nginx_site_setup_site_subfolder_used_to_serve_files: "{{ (use_bedrock_wp == true) | ternary('web', 'www') }}"
+
+# The linux username used by your webserver. The default value is "www-data"
+nginx_site_setup_web_user: "{{ nginx_install_nginx_user }}"
+
+# The linux group used by your webserver. The default value is "www-data"
+nginx_site_setup_web_group: "{{ nginx_install_nginx_user }}"
+
+# Will you be passing a list of sites to setup?  (not yet used)
+#nginx_site_setup_use_list: true 
+
+# Is this being run on a shared webserver?
+#nginx_site_setup_used_on_shared_webserver: false
+
+
+#####   Role - stancel.certbot_install     #####
+
+# None needed
+
+
+#####   Role - stancel.install_certbot_ssl_certs     #####
+
+# The email of the Administrator
+install_certbot_ssl_certs_certbot_email: "{{ administrator_email }}"
+
+# The FQDN of the website you want a SSL cert for * WITHOUT * a "www" subdomain prefixing it.
+install_certbot_ssl_certs_website_to_secure: "{{ server_fqdn }}"
+
+# List of databases and users to setup. Not needed unless the "install_certbot_ssl_certs_use_list" variable is set to true. Default is false.
+#install_certbot_ssl_certs_list_to_setup:
+#  - {
+#      url: 'yourcoolsite.com',
+#      https: 'true'
+#    }
+
+    #####     Optional Variables      #####
+
+# Will you be passing a list of databases and/or database users to setup?
+#install_certbot_ssl_certs_use_list: false
+
+# Directory on target server to store certbot binary
+#install_certbot_ssl_certs_certbot_binary_dir: /opt/certbot
+
+
+
+#####   Role - stancel.add_digitalocean_dns_entries     #####
+
+# The Fully Qualified Domain Name to add to create an A record entry into the DigitalOcean DNS system. This role will also add an entry for this same FQDN, but that is pre-pended by a "www" subdomain.
+add_digitalocean_dns_entries_server_fqdn: "{{ server_fqdn }}"
+
+# You must have your DigitalOcean API token saved into this environment variable
+add_digitalocean_dns_entries_do_token: "{{ digital_ocean_api_token }}"
+
+# List of Sites to setup DigitalOcean DNS Entries for. Not needed unless the "add_digitalocean_dns_entries_use_list_of_server_fqdn" variable is set to true. Default is false.
+#add_digitalocean_dns_entries_sites_to_set_up:
+#  - {
+#      url: 'investmentappraiser.com',
+#      need_to_register_dns: 'true',
+#    }
+
+    #####     Optional Variables      #####
+
+# These variables are set with the below defaults in defaults/main.yml. 
+# Only uncomment and change them or pass values if you would like
+
+# Will you be passing a list of domains to remove?
+#add_digitalocean_dns_entries_use_list_of_server_fqdn: false
+
 
 
 #####   Role - oefenweb.percona-server    #####
@@ -123,6 +239,15 @@ percona_server_etc_my_cnf:
     options:
       - name: bind-address
         value: "0.0.0.0"
+
+
+#####   Role - sbaerlocher.wp-cli    #####
+
+wp_cli_phar_url: https://raw.github.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+wp_cli_bin_path: "/usr/local/bin/{{ wp_cli_bin_command }}"
+wp_cli_bin_command: wp
+wp_cli_packages: []
+#  - 'aaemnnosttv/wp-cli-dotenv-command'
 
 
 #####   Role - setup-mysql-backups  #####
@@ -145,6 +270,9 @@ install_bareos_client_client_password: "{{ bareos_client_password }}"
 
 # Which (numerical) version of Ubuntu you are installing this onto
 install_bareos_client_bareos_ubuntu_install_version: "16.04"
+# if installing onto Ubuntu 18.04, then make sure to keep the "16.04" as the value for install_bareos_client_bareos_ubuntu_install_version
+# this uses a temporary workaround found here https://schroeffu.ch/2018/05/workaround-bareos-backup-server-client-unter-ubuntu-18-04/
+# until an official Bareos client is released for Ubuntu 18.04
 
 
 #####   Role - add-job-to-bareos-director     #####
@@ -260,6 +388,9 @@ add_config_to_nagios_server_nagios_friendly_name: "{{ nagios_friendly_name }}"
 # The fully qualified domain name or IP address of the machine you are adding to be monitored
 add_config_to_nagios_server_server_fqdn: "{{ server_fqdn }}"   
 
+# Does Nagios need to monitor WordPress updates for this server?
+add_config_to_nagios_server_is_a_wordpress_server: true
+
 
 #####   Role - stancel.git_download_wordpress     #####
 
@@ -267,7 +398,7 @@ add_config_to_nagios_server_server_fqdn: "{{ server_fqdn }}"
 # Fill in appropriate values below unless passing from a higher precedence
 
 # Choose the git tagged release that you would like to download and install. Comment this out if using a git branch instead.
-git_download_wordpress_tagged_release_version: "4.9.8"
+git_download_wordpress_tagged_release_version: "{{ tagged_version_to_use }}"
 
 # Is this a "new", "upgrade" or "restore" installation? "new" and "upgrade" installs install files from Git, "restore" skips any git deployments and expect a later role to restore files to the needed directory.
 git_download_wordpress_installation_type: "{{ installation_type }}"
@@ -294,16 +425,25 @@ git_download_wordpress_web_directory_for_application: "{{ web_directory_for_appl
     #####     Optional Variables      #####
 
 # Boolean as to whether to use standard Wordpress (default) or Bedrock WP (https://roots.io/bedrock/)
-#git_download_wordpress_use_bedrock: false
+git_download_wordpress_use_bedrock: "{{ use_bedrock_wp }}"
+
+# URL of the website. Not required or used unless using WP Bedrock
+git_download_wordpress_wp_home: "https://{{ server_fqdn }}"
+
+# Is this installation on a shared server?
+git_download_wordpress_using_shared_server: false
+
+# Hostname of Nagios server that is allowed to interact with the check_wordpress_updates.php script?
+git_download_wordpress_update_check_script_nagios_server_fqdn: "{{ nagios_server_fqdn }}"
 
 # The default git repo to use when downloading and installing the application
 #git_download_wordpress_git_repo: "git@github.com:WordPress/WordPress.git"
 
 # The default git repo for downloading and installing Bedrock Wordpress
-#git_download_wordpress_bedrock_git_repo: "git@github.com:roots/bedrock.git"
+git_download_wordpress_bedrock_git_repo: "{{ (custom_bedrock_git_repo != '') | ternary( custom_git_repo, 'git@github.com:roots/bedrock.git' ) }}"
 
 # If you are using your own forked repo an want to use a branch instead of a tagged release then fill in a value and comment out the "tagged_release_version" variable 
-#git_download_wordpress_git_branch: ""
+git_download_wordpress_git_branch: "{{ git_branch }}"
 
 # The default database character set / encoding that will be use
 #git_download_wordpress_db_encoding: "utf8mb4"
@@ -326,10 +466,10 @@ git_download_wordpress_web_directory_for_application: "{{ web_directory_for_appl
 #git_download_wordpress_core_update_level: 'minor'
 
 # The linux username used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
-#git_download_wordpress_web_user: "www-data"
+git_download_wordpress_web_user: "{{ nginx_install_nginx_user }}"
 
 # The linux group used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
-#git_download_wordpress_web_group: "www-data"
+git_download_wordpress_web_group: "{{ nginx_install_nginx_user }}"
 
 # manage package with apt, you can disable the installation of package
 #git_download_wordpress_manage_packages: true
@@ -394,7 +534,15 @@ restore_db_and_files_path_to_restored_files: "/tmp/bareos-restores"
 
 # File paths of Bareos restored files that need to be copied to some other path
 restore_db_and_files_filesets_to_restore:
-  - "{{ web_files_path }}{{ web_directory_for_application }}"
+  - {
+      from: "/srv/www/processfast.com/current",
+      to: "{{ web_files_path }}{{ web_directory_for_application }}"
+    }
+  - {
+      from: "/srv/www/processfast.com/shared/uploads",
+      to: "{{ web_files_path }}{{ web_directory_for_application }}/web/app/uploads"
+    }
+
 
 # File path where DB dump file to restore is located
 restore_db_and_files_db_backup_file_path: "{{ restore_db_and_files_path_to_restored_files }}/backups/mysql/current"
@@ -409,9 +557,75 @@ restore_db_and_files_web_files_path: "{{ web_files_path }}"
 restore_db_and_files_web_directory_for_application: "{{ web_directory_for_application }}"
 
 # The linux username used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
-#restore_db_and_files_web_user: "www-data"
+restore_db_and_files_web_user: "{{ nginx_install_nginx_user }}"
 
 # The linux group used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
-#restore_db_and_files_web_group: "www-data"
+restore_db_and_files_web_group: "{{ nginx_install_nginx_user }}"
 
 
+#####   Role - stancel.finish_wordpress_restore     #####
+
+# URL of the OLD website restoring from (without http:// or https://)
+finish_wordpress_restore_fqdn_of_old_wp_site: "{{ url_from_old_site }}"
+
+# URL of the NEW website restoring from (without http:// or https://)
+finish_wordpress_restore_fqdn_of_new_wp_site: "{{ server_fqdn }}"
+
+# The database to create when setting up the application
+finish_wordpress_restore_db_name: "{{ db_name }}"
+
+# The DB user to create when to be used by the application
+finish_wordpress_restore_db_user: "{{ application_db_user }}" 
+
+# The password for the DB user being created
+finish_wordpress_restore_db_password: "{{ application_db_password }}"
+
+    #####     Optional Variables      #####
+
+# Boolean as to whether to use standard Wordpress (default) or Bedrock WP (https://roots.io/bedrock/)
+finish_wordpress_restore_use_bedrock: "{{ use_bedrock_wp }}"
+
+# Is this installation on a shared server?
+#finish_wordpress_restore_using_shared_server: false
+
+# URL of the website. Not required or used unless using WP Bedrock
+finish_wordpress_restore_wp_home: "https://{{ finish_wordpress_restore_fqdn_of_new_wp_site }}"
+
+# The default database character set / encoding that will be use
+#finish_wordpress_restore_db_encoding: "utf8mb4"
+
+# The default database collation that will be use
+#finish_wordpress_restore_db_collation: "utf8mb4_unicode_ci"
+
+# The fqdn or IP address of where the application database will be connecting to. Default is 'localhost'
+#finish_wordpress_restore_db_host: "localhost"
+
+# Hostname of Nagios server that is allowed to interact with the check_wordpress_updates.php script?
+finish_wordpress_restore_update_check_script_nagios_server_fqdn: "{{ nagios_server_fqdn }}"
+
+# Disable All Updates
+# By default automatic updates are enabled, set this value to true to disable all automatic updates
+#finish_wordpress_restore_auto_update_disable: false
+
+#Define Core Update Level
+#true  = Development, minor, and major updates are all enabled
+#false = Development, minor, and major updates are all disabled
+#minor = Minor updates are enabled, development, and major updates are disabled
+# For development sites, the default value of WP_AUTO_UPDATE_CORE is true. For other sites sites, the default value of WP_AUTO_UPDATE_CORE is minor.
+#finish_wordpress_restore_core_update_level: 'minor'
+
+# The Document Root or file path where the files will be stored and served up by your webserver. The default path is "/var/www/html" and assumes you are running Apache2 on Debian or Ubuntu
+finish_wordpress_restore_web_files_path: "{{ web_files_path }}"
+finish_wordpress_restore_web_directory_for_application: "{{ web_directory_for_application }}"
+
+# The linux username used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+finish_wordpress_restore_web_user: "{{ nginx_install_nginx_user }}"
+
+# The linux group used by your webserver. The default value is "www-data" which assumes Apache is used on a Debian or Ubuntu linux
+finish_wordpress_restore_web_group: "{{ nginx_install_nginx_user }}"
+
+# Is this a "new", "upgrade" or "restore" installation? "new" and "upgrade" installs install files from Git, "restore" skips any git deployments and expect a later role to restore files to the needed directory.
+finish_wordpress_restore_installation_type: "{{ installation_type }}"
+
+# Is this instance to be used for a "dev", "qa" or "prod" environment? Only "prod" environments will deploy any needed cron jobs or schedulers.
+finish_wordpress_restore_environment_type: "{{ environment_type }}"

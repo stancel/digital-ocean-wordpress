@@ -1,25 +1,10 @@
 # Role Requirements are placed here. Some examples are below:
 
-# Install a role from Ansible Galaxy
-# - src: zaiste.nginx
-
-# Install a role from Github
-# - name: essentials
-#   src: https://github.com/zaiste/ansible-essentials
-
-# Install a role from Github using a branch
-#- name: essentials
-#  src: https://github.com/zaiste/ansible-essentials
-#  version: origin/master
-
-# Install a role from Github using a tag
-#- name: essentials
-#  src: https://github.com/zaiste/ansible-essentials
-#  version: 0.0.3
 
 - src: stancel.create-digitalocean-droplet
 
-- src: stancel.apache-webserver
+# Switched to using NginX
+#- src: stancel.apache-webserver
 
 - src: oefenweb.percona-server
 
@@ -40,6 +25,20 @@
 - src: stancel.restore_db_and_files
 
 - src: stancel.git_deploy_setup
+
+- src: stancel.nginx_install
+
+- src: stancel.nginx_site_setup
+
+- src: stancel.certbot_install
+
+- src: stancel.install_certbot_ssl_certs
+
+- src: stancel.add_digitalocean_dns_entries
+
+- src: sbaerlocher.wp-cli
+
+- src: stancel.finish_wordpress_restore
 
 
 

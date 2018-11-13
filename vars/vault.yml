@@ -16,3 +16,6 @@ mysql_root_password: "Fill in"
 # This should be a very long string (47 characters is the default).
 bareos_client_password: "Fill in"
 
+# Administrator's email address
+administrator_email: "someone@example.com"
+
