@@ -35,18 +35,24 @@ web_files_path: "/var/www"
 web_directory_for_application: "{{ (use_bedrock_wp == true) | ternary( web_directory_bedrock_wp, web_directory_standard_wp ) }}"
 
 # Is this a Bedrock WP install / update / restore? - Must be true of false.
-use_bedrock_wp: true
+use_bedrock_wp: false
 
 # What git tagged version (WordPress/Bedrock/Custom) to install / download? *Leave this as an empty string "" if using a branch instead.*
-tagged_version_to_use: "1.9.0"
+tagged_version_to_use: "5.3.2"
 
-# What git branch to checkout and use *instead of a tagged release*. *Leave this as an empty string "" if using a tagged / release version instead.*
+# What git branch to checkout and use *instead of a tagged release*. 
+# *Leave this as an empty string "" if using a tagged / release version instead.*
 git_branch: ""
 
 # Use a different repo than the standard WordPress one or official Bedrock one? 
 # If you have a client specific one or template already saved, put it here. Must be in format: git@github.com:ProcessFast/processfast-wp-bedrock.git
 # Leave as an empty string "" if you want to use default WordPress or Bedrock repo.
 custom_bedrock_git_repo: ""
+
+# If you are deploying a standard WordPress setup from an existing git repo then fill this value in. 
+# Must be in format: git@github.com:ProcessFast/processfast-wp-bedrock.git
+# Leave as an empty string "" if you want to use default WordPress or Bedrock repo.
+custom_standard_wp_git_repo: ""
 
 
 # Environment Variables Set - These need to be set!
@@ -56,7 +62,6 @@ control_server_ssh_key_fingerprint: "{{ lookup('env', 'DO_SSH_KEY_SIG_ATL_SERVER
 bareos_server_fqdn: "{{ lookup('env', 'BAREOS_STORAGE_DAEMON_FQDN') }}"
 bareos_storage_password: "{{ lookup('env', 'BAREOS_STORAGE_PASSWORD') }}"
 nagios_server_fqdn: "{{ lookup('env', 'NAGIOS_SERVER_FQDN') }}"
-
 
 
 
@@ -437,7 +442,9 @@ git_download_wordpress_using_shared_server: false
 git_download_wordpress_update_check_script_nagios_server_fqdn: "{{ nagios_server_fqdn }}"
 
 # The default git repo to use when downloading and installing the application
-#git_download_wordpress_git_repo: "git@github.com:WordPress/WordPress.git"
+git_download_standard_wordpress_git_repo: "git@github.com:WordPress/WordPress.git"
+
+git_download_wordpress_git_repo: "{{ (custom_standard_wp_git_repo != '') | ternary( custom_standard_wp_git_repo, git_download_standard_wordpress_git_repo ) }}" 
 
 # The default git repo for downloading and installing Bedrock Wordpress
 git_download_wordpress_bedrock_git_repo: "{{ (custom_bedrock_git_repo != '') | ternary( custom_git_repo, 'git@github.com:roots/bedrock.git' ) }}"
@@ -485,6 +492,26 @@ git_download_wordpress_web_group: "{{ nginx_install_nginx_user }}"
 
 # Install composer or not, default yes
 #git_download_wordpress_install_composer: true
+
+
+#####   Role - stancel.set-wordpress-permissions     #####
+
+# The document root for the webserver
+set_wordpress_permissions_web_home: "{{ web_files_path }}"
+# The name of the folder created under each website folder that holds the files webserver will serve up.
+set_wordpress_permissions_subfolder_used_to_serve_files: "{{ web_directory_for_application }}"
+
+#####     Optional Variables      #####
+
+# Will you be passing a list of databases and/or database users to setup?
+#set_wordpress_permissions_certs_use_list: false
+
+# Structure for a list, showing only the *required* fields
+#set_wordpress_permissions_setup_sites_to_set_up:
+#  - {
+#      name: 'investmentappraiser',
+#      site_subfolder_used_to_serve_files: "www"
+#    }
 
 
 #####   Role - restore-bareos-backup     #####

@@ -1,6 +1,5 @@
 # Role Requirements are placed here. Some examples are below:
 
-
 - src: stancel.create-digitalocean-droplet
 
 # Switched to using NginX
@@ -40,5 +39,4 @@
 
 - src: stancel.finish_wordpress_restore
 
-
-
+- src: stancel.set_wordpress_permissions

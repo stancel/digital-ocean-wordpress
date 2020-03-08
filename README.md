@@ -21,8 +21,15 @@ Execution:
 ```
 	ansible-playbook master.yml -e @vars/all_vars.yml -e @vars/vault.yml -i /Users/Brad/.ansible/hosts --skip-tags "restore"
 ```
+
+	New installations and upgrades without adding DNS entries on DigitalOcean:
+			
+```
+	ansible-playbook master.yml -e @vars/all_vars.yml -e @vars/vault.yml -i /Users/Brad/.ansible/hosts --skip-tags "restore,dns"
+```
 		
 	Restore a backup to a new server:
+	
 ```
 	ansible-playbook master.yml -e @vars/all_vars.yml -e @vars/vault.yml -i /Users/Brad/.ansible/hosts		
 ```
@@ -67,6 +74,7 @@ Roles
 	- stancel.add_digitalocean_dns_entries
 	- sbaerlocher.wp-cli
 	- stancel.finish_wordpress_restore
+	- stancel.set_wordpress_permissions
 
 
 
