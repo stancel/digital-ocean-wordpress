@@ -5,7 +5,7 @@
 # Switched to using NginX
 #- src: stancel.apache-webserver
 
-- src: oefenweb.percona-server
+- src: oefenweb.percona_server
 
 - src: stancel.setup-mysql-backups
 

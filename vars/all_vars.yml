@@ -196,10 +196,10 @@ install_certbot_ssl_certs_website_to_secure: "{{ server_fqdn }}"
     #####     Optional Variables      #####
 
 # Will you be passing a list of databases and/or database users to setup?
-#install_certbot_ssl_certs_use_list: false
+install_certbot_ssl_certs_use_list: false
 
 # Directory on target server to store certbot binary
-#install_certbot_ssl_certs_certbot_binary_dir: /opt/certbot
+install_certbot_ssl_certs_certbot_binary_dir: /opt/certbot
 
 
 
@@ -274,7 +274,7 @@ setup_mysql_backups_mysql_root_password: "{{ mysql_root_password }}"
 install_bareos_client_client_password: "{{ bareos_client_password }}" 
 
 # Which (numerical) version of Ubuntu you are installing this onto
-install_bareos_client_bareos_ubuntu_install_version: "16.04"
+install_bareos_client_bareos_ubuntu_install_version: "20.04"
 # if installing onto Ubuntu 18.04, then make sure to keep the "16.04" as the value for install_bareos_client_bareos_ubuntu_install_version
 # this uses a temporary workaround found here https://schroeffu.ch/2018/05/workaround-bareos-backup-server-client-unter-ubuntu-18-04/
 # until an official Bareos client is released for Ubuntu 18.04

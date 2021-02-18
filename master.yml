@@ -33,7 +33,7 @@
     - stancel.install_certbot_ssl_certs
     - stancel.nginx_install
     - stancel.nginx_site_setup
-    - oefenweb.percona-server
+    - oefenweb.percona_server
     - sbaerlocher.wp-cli
 
 - hosts: new_server
