@@ -30,9 +30,9 @@
     - init
   roles:
     - stancel.certbot_install
-    - stancel.install_certbot_ssl_certs
     - stancel.nginx_install
     - stancel.nginx_site_setup
+    - stancel.install_certbot_ssl_certs
     - oefenweb.percona_server
     - sbaerlocher.wp-cli
 

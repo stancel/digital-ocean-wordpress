@@ -31,7 +31,7 @@ Execution:
 	Restore a backup to a new server:
 	
 ```
-	ansible-playbook master.yml -e @vars/all_vars.yml -e @vars/vault.yml -i /Users/Brad/.ansible/hosts		
+	ansible-playbook master.yml -e @vars/all_vars.yml -e @vars/vault.yml -i /Users/Brad/.ansible/hosts --skip-tags "dns"
 ```
 
 	New install that does not have monitoring, backups or git deployments setup:	

@@ -22,6 +22,12 @@ environment_type: "Fill in"
 # FOR RESTORES - The name of the client listed inside Bareos Server that you want to restore files from
 bareos_client_to_restore: "Fill in"
 
+# FOR RESTORES - The URL from the site being restored
+url_from_old_site: "Fill in"
+
+# FOR RESTORES - Previous host name of the server you are restoring from
+previous_host_name_for_restores: "Fill in"
+
 # The database to create when setting up the application and backup
 db_name: "wordpress"
 
@@ -97,7 +103,7 @@ create_digitalocean_droplet_ssh_keys:
 create_digitalocean_droplet_droplet_size: "1gb"
 
 # The droplet image to use. Here we are using a base Ubuntu 16.04 LTS image
-create_digitalocean_droplet_droplet_image: "ubuntu-18-04-x64"
+create_digitalocean_droplet_droplet_image: "ubuntu-20-04-x64"
 
 # The DO datacenter region for your droplet
 create_digitalocean_droplet_region: "nyc1"
@@ -435,6 +441,9 @@ git_download_wordpress_use_bedrock: "{{ use_bedrock_wp }}"
 # URL of the website. Not required or used unless using WP Bedrock
 git_download_wordpress_wp_home: "https://{{ server_fqdn }}"
 
+# PHP Version to use (default currently 8.1)
+git_download_wordpress_php_version: "8.1"
+
 # Is this installation on a shared server?
 git_download_wordpress_using_shared_server: false
 
@@ -556,18 +565,28 @@ restore_db_and_files_mysql_root_password: "{{ mysql_root_password }}"
 # The name of the database to restore
 restore_db_and_files_db_name: "{{ db_name }}"
 
+# The hostname of the server you are restoring data from
+restore_db_and_files_previous_host_name: "{{ previous_host_name_for_restores }}"
+
 # Absolute file path where Bareos files were restored to
 restore_db_and_files_path_to_restored_files: "/tmp/bareos-restores"
 
 # File paths of Bareos restored files that need to be copied to some other path
+#restore_db_and_files_filesets_to_restore:
+#  - {
+#      from: "/srv/www/processfast.com/current",
+#      to: "{{ web_files_path }}{{ web_directory_for_application }}"
+#    }
+#  - {
+#      from: "/srv/www/processfast.com/shared/uploads",
+#      to: "{{ web_files_path }}{{ web_directory_for_application }}/web/app/uploads"
+#    }
+
+# File paths of Bareos restored files that need to be copied to some other path
 restore_db_and_files_filesets_to_restore:
   - {
-      from: "/srv/www/processfast.com/current",
-      to: "{{ web_files_path }}{{ web_directory_for_application }}"
-    }
-  - {
-      from: "/srv/www/processfast.com/shared/uploads",
-      to: "{{ web_files_path }}{{ web_directory_for_application }}/web/app/uploads"
+      from: "{{ restore_db_and_files_web_files_path }}/{{ restore_db_and_files_previous_host_name }}/www",
+      to: "{{ restore_db_and_files_web_files_path }}{{ restore_db_and_files_web_directory_for_application }}"
     }
 
 
